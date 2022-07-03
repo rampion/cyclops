@@ -1,6 +1,7 @@
 {-# LANGUAGE
     AllowAmbiguousTypes
   , BlockArguments
+  , FlexibleInstances
   , ImportQualifiedPost
   , LambdaCase
   , MultiParamTypeClasses
@@ -40,16 +41,23 @@ getOpsFrom (Version vers) (Description desc) (ProgName name) args = pure
           , App.long "version"
           , App.help do "Show the version (" ++ vers ++ ") and exit"
           ]
-  
-type Ops :: (Type -> Type) -> Type -> Constraint
-class Ops m t where
-  -- m is reserved for effectual parsers in future implementations
-  parser :: App.Parser t
 
 type OpsException :: Type
 data OpsException
   = ExitWith ExitCode String
   | Completion (IO String)
+
+instance Show OpsException where
+  showsPrec p = \case
+    ExitWith exit msg -> showParen (p > app_prec) do
+      showString "ExitWith " . shows exit . showString " " . shows msg
+    Completion _ -> showString "Completion (IO String)"
+    where
+      app_prec = 9
+
+instance Eq OpsException where
+  ExitWith exit0 msg0 == ExitWith exit1 msg1 = exit0 == exit1 && msg0 == msg1
+  _ == _ = False
 
 type Version :: Type 
 newtype Version = Version String
@@ -59,3 +67,11 @@ newtype Description = Description String
 
 type ProgName :: Type
 newtype ProgName = ProgName String
+  
+type Ops :: (Type -> Type) -> Type -> Constraint
+class Ops m t where
+  -- m is reserved for effectual parsers in future implementations
+  parser :: App.Parser t
+
+instance Ops m () where
+  parser = pure ()
