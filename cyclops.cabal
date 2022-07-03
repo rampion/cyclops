@@ -1,0 +1,53 @@
+cabal-version: 2.2
+name: cyclops
+version: 0.0.0.0
+synopsis: command-line option parser
+description: 
+  
+  @cyclops@ is a command-line option parser for Haskell applications.
+  .
+  This alpha release is a proof-of-concept of the core idea, which is to
+  allow users to specify option properties (placeholder text, flags, description,
+  default value) as visually close as possible to the variable binding, via
+  @ViewPatterns@, @TypeApplications@ and @DataKinds@.
+  .
+  The intent is to make it as easy as possible for the developer to get
+  command-line arguments from users with automatically generated
+  parsers and documentation.
+  .
+  The current implementation is a wrapper around `optparse-applicative`, though
+  this may change in the future to allow argument parsers to have side-effects in
+  IO (e.g. a parser for readable file paths).
+
+homepage: http://github.com/rampion/cyclops
+license: CC0-1.0
+license-file: LICENSE
+author: Noah Luck Easterly
+maintainer: noah.easterly@gmail.com
+category: Command LIne
+build-type: Simple
+
+flag development
+  description: Enable all warnings and upgrade warnings to errors
+  default: False
+  manual: True
+
+common library-configuration
+  build-depends: base ^>=4.14
+  default-language: Haskell2010
+  hs-source-dirs: src
+
+  if flag(development)
+    ghc-options: -Wall -Wextra -Werror -Wno-name-shadowing
+
+library
+  import: library-configuration
+  exposed-modules: Cyclops
+
+test-suite cyclops-spec
+  import: library-configuration
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules: Cyclops
+  hs-source-dirs: test
+  build-depends: hspec

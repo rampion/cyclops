@@ -1,0 +1,5 @@
+# developer-specific project settings
+cabal.project.local
+# cabal build directories
+dist-newstyle
+dist
