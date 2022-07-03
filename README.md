@@ -71,7 +71,7 @@ Arguments:
   [--dictionary=PATH]   - File to draw words from (default: /usr/share/dict/words)
   [-s|--seed=NUM]       - Seed value for PRNG
   count                 - Number of passwords to generate
-  [template ...]        - Template for gnerated passwords (default: w w w w)
+  [template ...]        - Template for generated passwords (default: w w w w)
 ```
 
 The current implementation is a wrapper around `optparse-applicative`, though
