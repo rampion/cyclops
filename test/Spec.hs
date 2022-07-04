@@ -90,3 +90,9 @@ main = hspec do
                \  xxx                      Three 'x's\n\
                \\n\
                \An example program."
+
+    describe "instance Ops m Readable" do
+      it "parses one Int successfully" do
+        getOpsTest ["12345"] `shouldMatch` \case
+          (arg @"placeholder" @"description" . readable -> n) -> n `shouldBe` (12345 :: Int)
+

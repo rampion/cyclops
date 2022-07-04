@@ -11,6 +11,7 @@
   , ScopedTypeVariables
   , StandaloneKindSignatures
   , TypeApplications
+  , UndecidableInstances
   , ViewPatterns
 #-}
 module Cyclops.Internal where
@@ -29,7 +30,7 @@ getOpsFrom (Version vers) (Description desc) (ProgName name) args = pure
   case
     App.execParserPure
       do App.defaultPrefs 
-      do (App.info (App.helper <*> version <*> parser @m) mempty)
+      do (App.info (helper <*> version <*> parser @m) mempty)
           { App.infoFooter = App.stringChunk desc
           }
       do args
@@ -38,6 +39,7 @@ getOpsFrom (Version vers) (Description desc) (ProgName name) args = pure
     App.Failure ((`App.renderFailure` name) -> (msg, exit)) -> Left do ExitWith exit msg
     App.CompletionInvoked ((`App.execCompletion` name) -> cmpl) -> Left do Completion cmpl
   where
+    helper = App.helper
     version = App.infoOption
       do unwords [name, vers]
       do mconcat 
@@ -45,6 +47,16 @@ getOpsFrom (Version vers) (Description desc) (ProgName name) args = pure
           , App.long "version"
           , App.help do "Show the version (" ++ vers ++ ") and exit"
           ]
+
+-- utilities
+
+app_prec :: Int
+app_prec = 9
+
+sym :: forall t. KnownSymbol t => String
+sym = symbolVal do Proxy @t
+
+-- /utilities
 
 type OpsException :: Type
 data OpsException
@@ -77,6 +89,11 @@ class FromArgument m a where
 
 instance FromArgument m String where
   fromArgument = App.str
+
+newtype ReadArgument a = ReadArgument { getReadArgument :: a }
+
+instance Read a => FromArgument m (ReadArgument a) where
+  fromArgument = ReadArgument <$> App.auto
   
 type Ops :: (Type -> Type) -> Type -> Constraint
 class Ops m t where
@@ -89,6 +106,7 @@ instance Ops m () where
 type Arg :: Symbol -> Symbol -> Type -> Type
 newtype Arg placeholder description a = Arg { arg :: a }
   deriving Eq via Identity a
+  deriving Functor via Identity
 
 instance (KnownSymbol placeholder, KnownSymbol description, Show a) => Show (Arg placeholder description a) where
   showsPrec p (Arg a) = showParen (p > app_prec) do
@@ -99,10 +117,8 @@ instance (FromArgument m a, KnownSymbol placeholder, KnownSymbol description) =>
       do Arg <$> fromArgument @m @a
       do App.metavar (sym @placeholder) <> App.help (sym @description)
 
--- utilities
+type Readable :: (Type -> Type) -> Type -> Type
+newtype Readable f a = Readable { readable :: f a }
 
-app_prec :: Int
-app_prec = 9
-
-sym :: forall t. KnownSymbol t => String
-sym = symbolVal do Proxy @t
+instance (Functor f, Ops m (f (ReadArgument a))) => Ops m (Readable f a) where
+  parser = Readable . fmap getReadArgument <$> parser @m

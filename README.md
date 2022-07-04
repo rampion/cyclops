@@ -25,15 +25,15 @@ main = do
            .readable
     -> seed
 
-   ,positional @"count"
-               @"Number of passwords to generate"
-               .readable
+   ,arg @"count"
+        @"Number of passwords to generate"
+        .readable
     -> count
 
-   ,positional @"template"
-               @"Template for generated passwords"
-               .some
-               .defaultTo @"w w w w"
+   ,arg @"template"
+        @"Template for generated passwords"
+        .some
+        .defaultTo @"w w w w"
     -> template
 
    ) <- getOps Conf
