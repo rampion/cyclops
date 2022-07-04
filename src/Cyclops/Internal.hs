@@ -16,6 +16,7 @@
 #-}
 module Cyclops.Internal where
 
+import Control.Applicative ((<|>))
 import Data.Functor.Identity (Identity(..))
 import Data.Proxy (Proxy(..))
 import GHC.TypeLits (KnownSymbol, symbolVal)
@@ -106,7 +107,7 @@ instance Ops m () where
 type Arg :: Symbol -> Symbol -> Type -> Type
 newtype Arg placeholder description a = Arg { arg :: a }
   deriving Eq via Identity a
-  deriving Functor via Identity
+  deriving (Functor, Applicative) via Identity
 
 instance (KnownSymbol placeholder, KnownSymbol description, Show a) => Show (Arg placeholder description a) where
   showsPrec p (Arg a) = showParen (p > app_prec) do
@@ -122,3 +123,9 @@ newtype Readable f a = Readable { readable :: f a }
 
 instance (Functor f, Ops m (f (ReadArgument a))) => Ops m (Readable f a) where
   parser = Readable . fmap getReadArgument <$> parser @m
+
+type Optional :: (Type -> Type) -> Type -> Type
+newtype Optional f a = Optional { optional :: f (Maybe a) }
+
+instance (Applicative f, Ops m (f a)) => Ops m (Optional f a) where
+  parser = (Optional . fmap Just <$> parser @m) <|> pure do Optional do pure Nothing

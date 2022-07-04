@@ -96,3 +96,12 @@ main = hspec do
         getOpsTest ["12345"] `shouldMatch` \case
           (arg @"placeholder" @"description" . readable -> n) -> n `shouldBe` (12345 :: Int)
 
+
+    describe "instance Ops m Optional" do
+      it "parses one arg successfully" do
+        getOpsTest ["one"] `shouldMatch` \case
+          (arg @"placeholder" @"description" . optional -> n) -> n `shouldBe` Just "one"
+
+      it "parses no args successfully" do
+        getOpsTest [] `shouldMatch` \case
+          (arg @"placeholder" @"description" . optional -> n) -> n `shouldBe` Nothing @String
