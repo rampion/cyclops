@@ -16,8 +16,11 @@
 #-}
 module Cyclops.Internal where
 
-import Control.Applicative ((<|>))
+import Control.Applicative ((<|>), liftA2)
+import Data.Functor.Classes (Eq1)
+import Data.Functor.Compose (Compose(..))
 import Data.Functor.Identity (Identity(..))
+import Data.List.NonEmpty (NonEmpty(..))
 import Data.Proxy (Proxy(..))
 import GHC.TypeLits (KnownSymbol, symbolVal)
 import GHC.Types (Type, Constraint, Symbol)
@@ -107,7 +110,7 @@ instance Ops m () where
 type Arg :: Symbol -> Symbol -> Type -> Type
 newtype Arg placeholder description a = Arg { arg :: a }
   deriving Eq via Identity a
-  deriving (Functor, Applicative) via Identity
+  deriving (Eq1, Functor, Applicative) via Identity
 
 instance (KnownSymbol placeholder, KnownSymbol description, Show a) => Show (Arg placeholder description a) where
   showsPrec p (Arg a) = showParen (p > app_prec) do
@@ -122,17 +125,31 @@ type Readable :: (Type -> Type) -> Type -> Type
 newtype Readable f a = Readable { readable :: f a }
   deriving (Functor, Applicative) via f
 
+instance Show (f a) => Show (Readable f a) where
+  showsPrec p (Readable fa) = showParen (p > app_prec) do
+    showString "Readable " . showsPrec (succ app_prec) fa
+
 instance (Functor f, Ops m (f (ReadArgument a))) => Ops m (Readable f a) where
   parser = Readable . fmap getReadArgument <$> parser @m
 
 type Optional :: (Type -> Type) -> Type -> Type
 newtype Optional f a = Optional { optional :: f (Maybe a) }
+  deriving Eq via Compose f Maybe a
+
+instance Show (f (Maybe a)) => Show (Optional f a) where
+  showsPrec p (Optional fa) = showParen (p > app_prec) do
+    showString "Optional " . showsPrec (succ app_prec) fa
 
 instance (Applicative f, Ops m (f a)) => Ops m (Optional f a) where
   parser = (Optional . fmap Just <$> parser @m) <|> pure do Optional do pure Nothing
 
 type DefaultTo :: Symbol -> (Type -> Type) -> Type -> Type
 newtype DefaultTo defaultValue f a = DefaultTo { defaultTo :: f a }
+  deriving Eq via f a
+
+instance (KnownSymbol defaultValue, Show (f a)) => Show (DefaultTo defaultValue f a) where
+  showsPrec p (DefaultTo fa) = showParen (p > app_prec) do
+    showString "DefaultTo @" . shows (sym @defaultValue) . showString " " . showsPrec (succ app_prec) fa
 
 instance (Applicative f, Ops m (f a), KnownSymbol defaultValue) => Ops m (DefaultTo defaultValue f a) where
   parser = primary <|> fallback where
@@ -146,3 +163,26 @@ instance (Applicative f, Ops m (f a), KnownSymbol defaultValue) => Ops m (Defaul
       of
         App.Success t -> pure t
         _ -> error do "Unparseable default value " ++ show defaultValue
+
+type ZeroOrMore :: (Type -> Type) -> Type -> Type
+newtype ZeroOrMore f a = ZeroOrMore { zeroOrMore :: f [a] }
+  deriving Eq via Compose f [] a
+
+instance Show (f [a]) => Show (ZeroOrMore f a) where
+  showsPrec p (ZeroOrMore fla) = showParen (p > app_prec) do
+    showString "ZeroOrMore " . showsPrec (succ app_prec) fla
+
+instance (Applicative f, Ops m (f a)) => Ops m (ZeroOrMore f a) where
+  parser = ZeroOrMore . sequenceA <$> App.many (parser @m)
+
+type OneOrMore :: (Type -> Type) -> Type -> Type
+newtype OneOrMore f a = OneOrMore { oneOrMore :: f (NonEmpty a) }
+  deriving Eq via Compose f NonEmpty a
+
+instance Show (f (NonEmpty a)) => Show (OneOrMore f a) where
+  showsPrec p (OneOrMore fla) = showParen (p > app_prec) do
+    showString "OneOrMore " . showsPrec (succ app_prec) fla
+
+instance (Applicative f, Ops m (f a)) => Ops m (OneOrMore f a) where
+  parser = OneOrMore . sequenceA <$> liftA2 (:|) p (App.many p)
+    where p = parser @m
