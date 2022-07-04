@@ -77,7 +77,7 @@ main = hspec do
       it "lists the placeholder and description correctly in --help" do
         let actual = getOpsTest ["--help"] <& \case
               Right (arg @"xxx" @"Three 'x's" -> _ :: String)  -> ()
-              Left _                                          -> ()
+              Left _ -> ()
 
         actual `shouldBe` Left do
           ExitWith
@@ -96,7 +96,6 @@ main = hspec do
         getOpsTest ["12345"] `shouldMatch` \case
           (arg @"placeholder" @"description" . readable -> n) -> n `shouldBe` (12345 :: Int)
 
-
     describe "instance Ops m Optional" do
       it "parses one arg successfully" do
         getOpsTest ["one"] `shouldMatch` \case
@@ -105,3 +104,17 @@ main = hspec do
       it "parses no args successfully" do
         getOpsTest [] `shouldMatch` \case
           (arg @"placeholder" @"description" . optional -> n) -> n `shouldBe` Nothing @String
+
+    describe "instance Ops m DefaultTo" do
+      it "parses one arg successfully" do
+        getOpsTest ["one"] `shouldMatch` \case
+          (arg @"placeholder" @"description" . defaultTo @"default" -> n) -> n `shouldBe` "one"
+
+      it "parses no args successfully" do
+        getOpsTest [] `shouldMatch` \case
+          (arg @"placeholder" @"description" . defaultTo @"default" -> n) -> n `shouldBe` "default"
+
+      it "errors on a bad default" do
+        let unparsableDefault = getOpsTest [] `shouldMatch` \case
+              (arg @"placeholder" @"description" . readable . defaultTo @"default" -> n) -> n `shouldBe` (123 :: Int)
+        unparsableDefault `shouldThrow` errorCall "Unparseable default value \"default\""

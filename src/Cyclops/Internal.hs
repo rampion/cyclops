@@ -120,6 +120,7 @@ instance (FromArgument m a, KnownSymbol placeholder, KnownSymbol description) =>
 
 type Readable :: (Type -> Type) -> Type -> Type
 newtype Readable f a = Readable { readable :: f a }
+  deriving (Functor, Applicative) via f
 
 instance (Functor f, Ops m (f (ReadArgument a))) => Ops m (Readable f a) where
   parser = Readable . fmap getReadArgument <$> parser @m
@@ -129,3 +130,19 @@ newtype Optional f a = Optional { optional :: f (Maybe a) }
 
 instance (Applicative f, Ops m (f a)) => Ops m (Optional f a) where
   parser = (Optional . fmap Just <$> parser @m) <|> pure do Optional do pure Nothing
+
+type DefaultTo :: Symbol -> (Type -> Type) -> Type -> Type
+newtype DefaultTo defaultValue f a = DefaultTo { defaultTo :: f a }
+
+instance (Applicative f, Ops m (f a), KnownSymbol defaultValue) => Ops m (DefaultTo defaultValue f a) where
+  parser = primary <|> fallback where
+    defaultValue = sym @defaultValue
+    primary = DefaultTo <$> parser @m
+    fallback = case
+        App.execParserPure
+          do App.defaultPrefs 
+          do App.info primary mempty
+          do words defaultValue
+      of
+        App.Success t -> pure t
+        _ -> error do "Unparseable default value " ++ show defaultValue
