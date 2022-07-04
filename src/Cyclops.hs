@@ -13,8 +13,8 @@ import System.Environment (getProgName, getArgs)
 import System.Exit (exitSuccess, ExitCode(ExitSuccess), exitWith)
 import System.IO (hPutStrLn, stderr)
 
-import Cyclops.Internal hiding (Ops(..))
-import Cyclops.Internal (Ops())
+import Cyclops.Internal hiding (Ops(..), FromArgument(..), sym, app_prec)
+import Cyclops.Internal (Ops, FromArgument)
 
 getOps :: Ops IO t => Version -> Description -> IO t
 getOps version description = do
