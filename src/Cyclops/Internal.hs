@@ -6,11 +6,13 @@
   , FlexibleInstances
   , ImportQualifiedPost
   , LambdaCase
+  , KindSignatures
   , MultiParamTypeClasses
   , Rank2Types
   , ScopedTypeVariables
   , StandaloneKindSignatures
   , TypeApplications
+  , TypeOperators
   , UndecidableInstances
   , ViewPatterns
 #-}
@@ -60,6 +62,18 @@ app_prec = 9
 sym :: forall t. KnownSymbol t => String
 sym = symbolVal do Proxy @t
 
+syms :: forall ts. KnownSymbols ts => [String]
+syms = symbolVals do Proxy @ts
+
+type KnownSymbols :: [Symbol] -> Constraint
+class KnownSymbols ns where
+  symbolVals :: Proxy ns -> [String]
+
+instance KnownSymbols '[] where
+  symbolVals _ = []
+
+instance (KnownSymbols ns, KnownSymbol n) => KnownSymbols (n ': ns) where
+  symbolVals _ = sym @n : syms @ns
 -- /utilities
 
 type OpsException :: Type
@@ -186,3 +200,20 @@ instance Show (f (NonEmpty a)) => Show (OneOrMore f a) where
 instance (Applicative f, Ops m (f a)) => Ops m (OneOrMore f a) where
   parser = OneOrMore . sequenceA <$> liftA2 (:|) p (App.many p)
     where p = parser @m
+
+type Flag :: [Symbol] -> Symbol -> Type
+data Flag flags description = Flag
+
+flag :: forall (flags :: [Symbol]) (description :: Symbol) (a :: Type). a -> Flag flags description -> a
+flag = const
+
+instance (KnownSymbols flags, KnownSymbol description) => Show (Flag flags description) where
+  showsPrec p Flag = showParen (p > app_prec) do
+    showString "Flag @" . shows (syms @flags) . showString " @" . shows (sym @description)
+
+instance (KnownSymbols flags, KnownSymbol description) => Ops m (Flag flags description) where
+  parser = App.flag' Flag
+      do foldMap (go . dropWhile (=='-')) (syms @flags) <> App.help (sym @description)
+    where go [] = error "invalid flag"
+          go [c] = App.short c
+          go w = App.long w

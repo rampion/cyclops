@@ -76,6 +76,13 @@ main = hspec do
         getOpsTest ["one"] & shouldMatch const \_
           (arg @"placeholder" @"description" -> txt) -> txt `shouldBe` "one"
 
+      it "fails to parse a flag" do
+        getOpsTest ["--one"] & shouldMatch 
+          do \_ -> \case
+              ExitWith (ExitFailure 1) (takeWhile (/='\n') -> msg) -> msg `shouldBe` "Invalid option `--one'"
+              val -> expectationFailure do "expected ExitWith (ExitFailure 1) \"Invalid option `--one'\\n…\" but got " ++ show val
+          do \fail (arg @"placeholder" @"description" -> _ :: String) -> fail
+
       it "lists the placeholder and description correctly in --help" do
         getOpsTest ["--help"] & shouldMatch
           do \_ exc -> exc `shouldBe` ExitWith
@@ -127,12 +134,10 @@ main = hspec do
         getOpsTest [] & shouldMatch const \_
           (arg @"placeholder" @"description" . defaultTo @"default" -> n) -> n `shouldBe` "default"
 
-      {-
       it "errors on a bad default" do
-        let unparsableDefault = getOpsTest [] `shouldMatch` \case
+        let unparsableDefault = getOpsTest [] & shouldMatch const \_
               (arg @"placeholder" @"description" . readable . defaultTo @"default" -> n) -> n `shouldBe` (123 :: Int)
         unparsableDefault `shouldThrow` errorCall "Unparseable default value \"default\""
--}
 
       it "records the default in --help" do
         pendingWith "need to be able to specify inner parser Mods"
@@ -210,3 +215,26 @@ main = hspec do
                  \\n\
                  \An example program."
           do \fail (arg @"xxx" @"Three 'x's" . oneOrMore -> _ :: NonEmpty String) -> fail
+
+    describe "instance Ops m Flag" do
+      it "parses one long flag successfully" do
+        getOpsTest ["--one"] & shouldMatch const \_
+          (flag @["one","o"] @"description" "YES" -> x) -> x `shouldBe` "YES"
+
+      it "parses one short flag successfully" do
+        getOpsTest ["-o"] & shouldMatch const \_
+          (flag @["one","o"] @"description" "YES" -> x) -> x `shouldBe` "YES"
+
+      it "documents the flags in --help" do
+        getOpsTest ["--help"] & shouldMatch
+          do \_ exc -> exc `shouldBe` ExitWith
+              do ExitSuccess
+              do "Usage: example [-v|--version] (-o|--one)\n\
+                 \\n\
+                 \Available options:\n\
+                 \  -h,--help                Show this help text\n\
+                 \  -v,--version             Show the version (1.0.0) and exit\n\
+                 \  -o,--one                 description\n\
+                 \\n\
+                 \An example program."
+          do \fail (flag @["one","o"] @"description" "YES" -> _) -> fail
