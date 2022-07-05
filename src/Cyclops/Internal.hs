@@ -25,6 +25,7 @@ import Data.Functor.Classes (Eq1)
 import Data.Functor.Compose (Compose(..))
 import Data.Functor.Identity (Identity(..))
 import Data.List.NonEmpty (NonEmpty(..))
+import Data.Maybe (fromMaybe)
 import Data.Proxy (Proxy(..))
 import GHC.TypeLits (KnownSymbol, symbolVal)
 import GHC.Types (Type, Constraint, Symbol)
@@ -236,6 +237,7 @@ instance (KnownSymbols flags, KnownSymbol description, a ~ ()) => Ops m (Flag fl
 
 type Flagged :: [Symbol] -> Symbol -> Symbol -> Type -> Type
 newtype Flagged flags placeholder description a = Flagged { flagged :: a }
+  deriving (Functor, Applicative) via Identity
 
 instance (KnownSymbols flags, KnownSymbol placeholder, KnownSymbol description, Show a) => Show (Flagged flags placeholder description a) where
   showsPrec p (Flagged a) = showParen (p > app_prec)
@@ -252,3 +254,8 @@ instance (KnownSymbols flags, KnownSymbol placeholder, KnownSymbol description, 
           go [c] = App.short c
           go w = App.long w
 
+switch :: forall (flags :: [Symbol]) (description :: Symbol). Optional (Flag flags description) () -> Bool
+switch = fromMaybe False . flag @flags @description True . optional
+
+option :: forall (flags :: [Symbol]) (placeholder :: Symbol) (description :: Symbol) a. Optional (Flagged flags placeholder description) a -> Maybe a
+option = flagged @flags @placeholder @description . optional

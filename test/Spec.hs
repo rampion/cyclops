@@ -262,3 +262,20 @@ main = hspec do
               val -> expectationFailure do "expected ExitWith (ExitFailure 1) \"Missing: (-o|--one)\\n…\" but got " ++ show val
           do \fail (flagged @["one","o"] @"placeholder" @"description" -> _ :: String) -> fail
 
+    describe "switch" do
+      it "parses the presence of a flag as True" do
+        getOpsTest ["--debug"] & shouldMatch const \_
+          (switch @'["d", "debug"] @"Show debugging statements" -> b) -> b `shouldBe` True
+
+      it "parses the absence of a flag as False" do
+        getOpsTest [] & shouldMatch const \_
+          (switch @'["d", "debug"] @"Show debugging statements" -> b) -> b `shouldBe` False
+
+    describe "option" do
+      it "parses the presence of a flagged argument as Just the parsed value" do
+        getOpsTest ["--dictionary", "/usr/share/dict/words"] & shouldMatch const \_
+          (option @'["--dictionary"] @"PATH" @"File to draw words from" -> b) -> b `shouldBe` Just "/usr/share/dict/words"
+
+      it "parses the absence of a flagged argument as Nothing" do
+        getOpsTest [] & shouldMatch const \_
+          (option @'["--dictionary"] @"PATH" @"File to draw words from" -> b) -> b `shouldBe` Nothing @String
