@@ -4,6 +4,7 @@
   , DataKinds
   , DerivingVia
   , FlexibleInstances
+  , FunctionalDependencies
   , ImportQualifiedPost
   , LambdaCase
   , KindSignatures
@@ -12,6 +13,7 @@
   , ScopedTypeVariables
   , StandaloneKindSignatures
   , TypeApplications
+  , TypeFamilies
   , TypeOperators
   , UndecidableInstances
   , ViewPatterns
@@ -201,18 +203,32 @@ instance (Applicative f, Ops m (f a)) => Ops m (OneOrMore f a) where
   parser = OneOrMore . sequenceA <$> liftA2 (:|) p (App.many p)
     where p = parser @m
 
-type Flag :: [Symbol] -> Symbol -> Type
-data Flag flags description = Flag
+type Flag :: [Symbol] -> Symbol -> Type -> Type
+newtype Flag flags description a = Flag a
+  deriving (Functor, Applicative) via Identity
 
-flag :: forall (flags :: [Symbol]) (description :: Symbol) (a :: Type). a -> Flag flags description -> a
-flag = const
+type Set :: Type -> Type -> Type -> Constraint
+class Set a s t | a s -> t, s t -> a where
+  set :: a -> s -> t
 
-instance (KnownSymbols flags, KnownSymbol description) => Show (Flag flags description) where
-  showsPrec p Flag = showParen (p > app_prec) do
-    showString "Flag @" . shows (syms @flags) . showString " @" . shows (sym @description)
+instance Set a () a where
+  set = const
 
-instance (KnownSymbols flags, KnownSymbol description) => Ops m (Flag flags description) where
-  parser = App.flag' Flag
+instance Functor f => Set a (f b) (f a) where
+  set = (<$)
+
+flag ::
+  forall (flags :: [Symbol]) (description :: Symbol) (a :: Type) (s :: Type) (t :: Type).
+  Set a s t => a -> Flag flags description s -> t
+flag a (Flag s) = set a s
+
+instance (KnownSymbols flags, KnownSymbol description, Show a) => Show (Flag flags description a) where
+  showsPrec p (Flag a) = showParen (p > app_prec) do
+    showString "Flag @" . shows (syms @flags) . showString " @" . shows (sym @description) . showString " " . shows a
+
+instance (KnownSymbols flags, KnownSymbol description, a ~ ()) => Ops m (Flag flags description a) where
+  parser = App.flag' 
+      do Flag ()
       do foldMap (go . dropWhile (=='-')) (syms @flags) <> App.help (sym @description)
     where go [] = error "invalid flag"
           go [c] = App.short c

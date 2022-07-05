@@ -107,6 +107,10 @@ main = hspec do
         getOpsTest ["one"] & shouldMatch const \_
           (arg @"placeholder" @"description" . optional -> n) -> n `shouldBe` Just "one"
 
+      it "parses one flag successfully" do
+        getOpsTest ["--one"] & shouldMatch const \_
+          (flag @'["one","o"] @"description" () . optional -> n) -> n `shouldBe` Just ()
+
       it "parses no args successfully" do
         getOpsTest [] & shouldMatch const \_
           (arg @"placeholder" @"description" . optional -> n) -> n `shouldBe` Nothing @String
