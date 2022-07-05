@@ -233,3 +233,22 @@ instance (KnownSymbols flags, KnownSymbol description, a ~ ()) => Ops m (Flag fl
     where go [] = error "invalid flag"
           go [c] = App.short c
           go w = App.long w
+
+type Flagged :: [Symbol] -> Symbol -> Symbol -> Type -> Type
+newtype Flagged flags placeholder description a = Flagged { flagged :: a }
+
+instance (KnownSymbols flags, KnownSymbol placeholder, KnownSymbol description, Show a) => Show (Flagged flags placeholder description a) where
+  showsPrec p (Flagged a) = showParen (p > app_prec)
+    do showString "Flagged @" . shows (syms @flags) .
+        showString " @" . shows (sym @placeholder) .
+        showString " @" . shows (sym @description) .
+        showString " " . shows a
+
+instance (KnownSymbols flags, KnownSymbol placeholder, KnownSymbol description, FromArgument m a) => Ops m (Flagged flags placeholder description a) where
+  parser = App.option
+      do Flagged <$> fromArgument @m
+      do foldMap (go . dropWhile (=='-')) (syms @flags) <> App.help (sym @description) <> App.metavar (sym @placeholder)
+    where go [] = error "invalid flag"
+          go [c] = App.short c
+          go w = App.long w
+

@@ -229,6 +229,13 @@ main = hspec do
         getOpsTest ["-o"] & shouldMatch const \_
           (flag @["one","o"] @"description" "YES" -> x) -> x `shouldBe` "YES"
 
+      it "fails to parse no args" do
+        getOpsTest [] & shouldMatch
+          do \_ -> \case
+              ExitWith (ExitFailure 1) msg -> takeWhile (/='\n') msg `shouldBe` "Missing: (-o|--one)"
+              val -> expectationFailure do "expected ExitWith (ExitFailure 1) \"Missing: (-o|--one)\\n…\" but got " ++ show val
+          do \fail (flag @["one","o"] @"description" id -> _) -> fail
+
       it "documents the flags in --help" do
         getOpsTest ["--help"] & shouldMatch
           do \_ exc -> exc `shouldBe` ExitWith
@@ -242,3 +249,16 @@ main = hspec do
                  \\n\
                  \An example program."
           do \fail (flag @["one","o"] @"description" "YES" -> _) -> fail
+
+    describe "instance Ops m Flagged" do
+      it "parses one long flagged argument successfully" do
+        getOpsTest ["--one", "steve"] & shouldMatch const \_
+          (flagged @["one","o"] @"placeholder" @"description" -> x) -> x `shouldBe` "steve"
+
+      it "fails to parse no args" do
+        getOpsTest [] & shouldMatch
+          do \_ -> \case
+              ExitWith (ExitFailure 1) msg -> takeWhile (/='\n') msg `shouldBe` "Missing: (-o|--one placeholder)"
+              val -> expectationFailure do "expected ExitWith (ExitFailure 1) \"Missing: (-o|--one)\\n…\" but got " ++ show val
+          do \fail (flagged @["one","o"] @"placeholder" @"description" -> _ :: String) -> fail
+
