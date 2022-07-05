@@ -27,6 +27,7 @@ import Data.Functor.Identity (Identity(..))
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.Maybe (fromMaybe)
 import Data.Proxy (Proxy(..))
+import Data.String (IsString(..))
 import GHC.TypeLits (KnownSymbol, symbolVal)
 import GHC.Types (Type, Constraint, Symbol)
 import System.Exit (ExitCode)
@@ -96,9 +97,11 @@ instance Eq OpsException where
 
 type Version :: Type 
 newtype Version = Version String
+  deriving IsString via String
 
 type Description :: Type
 newtype Description = Description String
+  deriving IsString via String
 
 type ProgName :: Type
 newtype ProgName = ProgName String
@@ -123,6 +126,18 @@ class Ops m t where
 
 instance Ops m () where
   parser = pure ()
+
+instance (Ops m a, Ops m b) => Ops m (a,b) where
+  parser = (,) <$> parser @m @a <*> parser @m @b
+
+instance (Ops m a, Ops m b, Ops m c) => Ops m (a,b,c) where
+  parser = (,,) <$> parser @m @a <*> parser @m @b <*> parser @m @c
+
+instance (Ops m a, Ops m b, Ops m c, Ops m d) => Ops m (a,b,c,d) where
+  parser = (,,,) <$> parser @m @a <*> parser @m @b <*> parser @m @c <*> parser @m @d
+
+instance (Ops m a, Ops m b, Ops m c, Ops m d, Ops m e) => Ops m (a,b,c,d,e) where
+  parser = (,,,,) <$> parser @m @a <*> parser @m @b <*> parser @m @c <*> parser @m @d <*> parser @m @e
 
 type Arg :: Symbol -> Symbol -> Type -> Type
 newtype Arg placeholder description a = Arg { arg :: a }
@@ -152,6 +167,7 @@ instance (Functor f, Ops m (f (ReadArgument a))) => Ops m (Readable f a) where
 type Optional :: (Type -> Type) -> Type -> Type
 newtype Optional f a = Optional { optional :: f (Maybe a) }
   deriving Eq via Compose f Maybe a
+  deriving Functor via Compose f Maybe
 
 instance Show (f (Maybe a)) => Show (Optional f a) where
   showsPrec p (Optional fa) = showParen (p > app_prec) do
@@ -195,6 +211,7 @@ instance (Applicative f, Ops m (f a)) => Ops m (ZeroOrMore f a) where
 type OneOrMore :: (Type -> Type) -> Type -> Type
 newtype OneOrMore f a = OneOrMore { oneOrMore :: f (NonEmpty a) }
   deriving Eq via Compose f NonEmpty a
+  deriving (Functor, Applicative) via Compose f NonEmpty
 
 instance Show (f (NonEmpty a)) => Show (OneOrMore f a) where
   showsPrec p (OneOrMore fla) = showParen (p > app_prec) do

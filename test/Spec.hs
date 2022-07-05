@@ -71,6 +71,40 @@ main = hspec do
                \\n\
                \Usage: example [-v|--version]"
 
+    describe "instance Ops m (,)" do
+      it "parses two arguments successfully" do
+        getOpsTest ["one", "two"] & shouldMatch const \_ 
+          ( arg @"first" @"first argument" -> x
+           ,arg @"second" @"second argument" -> y
+           ) -> (x, y) `shouldBe` ("one", "two")
+
+    describe "instance Ops m (,,)" do
+      it "parses three arguments successfully" do
+        getOpsTest ["one", "two", "three"] & shouldMatch const \_ 
+          ( arg @"first" @"first argument" -> x
+           ,arg @"second" @"second argument" -> y
+           ,arg @"third" @"third argument" -> z
+           ) -> (x, y, z) `shouldBe` ("one", "two", "three")
+
+    describe "instance Ops m (,,,)" do
+      it "parses four arguments successfully" do
+        getOpsTest ["one", "two", "three", "four"] & shouldMatch const \_ 
+          ( arg @"first" @"first argument" -> x
+           ,arg @"second" @"second argument" -> y
+           ,arg @"third" @"third argument" -> z
+           ,arg @"fourth" @"fourth argument" -> a
+           ) -> (x, y, z, a) `shouldBe` ("one", "two", "three", "four")
+
+    describe "instance Ops m (,,,,)" do
+      it "parses five arguments successfully" do
+        getOpsTest ["one", "two", "three", "four", "five"] & shouldMatch const \_ 
+          ( arg @"first" @"first argument" -> x
+           ,arg @"second" @"second argument" -> y
+           ,arg @"third" @"third argument" -> z
+           ,arg @"fourth" @"fourth argument" -> a
+           ,arg @"fifth" @"fifth argument" -> b
+           ) -> (x, y, z, a, b) `shouldBe` ("one", "two", "three", "four", "five")
+
     describe "instance Ops m Arg" do
       it "parses one argument successfully" do
         getOpsTest ["one"] & shouldMatch const \_

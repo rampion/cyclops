@@ -13,10 +13,10 @@ main = do
            @"Show debugging statements"
     -> debug
 
-   ,option @'["dictionary"] 
-           @"PATH" 
-           @"File to draw words from"
-           .defaultTo @"/usr/share/dict/words"
+   ,flagged @'["dictionary"] 
+            @"PATH" 
+            @"File to draw words from"
+            .defaultTo @"--dictionary /usr/share/dict/words"
     -> dictionaryPath
 
    ,option @'["s", "seed"]
@@ -32,7 +32,7 @@ main = do
 
    ,arg @"template"
         @"Template for generated passwords"
-        .some
+        .oneOrMore
         .defaultTo @"w w w w"
     -> template
 
@@ -51,7 +51,7 @@ main = do
     Just n  -> setStdGen n
 
   replicateM_ count do
-    putStrLn . unwords =<< traverse generate template 
+    putStrLn . unwords . toList =<< traverse (generate dict) template 
 ```
 
 The intent is to make it as easy as possible for the developer to get

@@ -54,3 +54,14 @@ test-suite cyclops-spec
   other-modules: Cyclops
   hs-source-dirs: test
   build-depends: hspec
+
+executable cyclops-example
+  main-is: Example.hs
+  hs-source-dirs: ex
+
+  build-depends: base ^>=4.14
+                ,cyclops
+  default-language: Haskell2010
+
+  if flag(development)
+    ghc-options: -Wall -Wextra -Werror -Wno-name-shadowing
